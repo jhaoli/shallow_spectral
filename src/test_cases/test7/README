@@ -1,0 +1,15 @@
+Test Case 7 - 500mb ECMWF Observed Data
+---------------------------------------
+
+Experiment 7 tests the full equations with semi-implicit time stepping.
+For this experiment horizontal diffusion has been enabled.
+The initial conditions are obtained from a NetCDF file that contains
+normal mode initialized fields and reference solutions from a high
+resolution run. The data are 500mb heights and winds of December 21, 1978.
+The kinetic and potential energy spectra are plotted, and the conservation 
+properties computed.  After one day, an error analysis is performed.
+Contour plots of the height field have been enabled on a polar
+stereographic projection with continental outlines.
+The spectral coefficients of the model run are saved in the NetCDF 
+file 'REF0007.cdf'.
+

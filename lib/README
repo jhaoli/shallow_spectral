@@ -1,0 +1,485 @@
+ 
+ 
+ 
+ 
+ 
+ 
+             FFT991 and FFT99: Multiple Fast Fourier Transform Routines
+
+                           by Richard Valent
+                        Version 1.0 April 1991
+ 
+ Copyright 1990 by the University Corporation for Atmospheric Research (UCAR).
+ All Rights Reserved.
+ 
+ 
+ Introduction
+ -----------------------------------------------------------------
+ 
+ 
+      FFT991 and FFT99 are routines for performing multiple fast Fourier
+      transforms.  They and their companion initialization routine SET99
+      are supported as relocatable binary code in library ecmfft from
+      directory /usr/local/lib.  These routines are often called multiple 
+      FFTs because they can transform many vectors within one routine call.
+
+      Historical Note: SCD supported routines CFTFAX and CFFT99 in library 
+      ecmfft in directory /usr/local/lib.  These routines were discontinued 
+      on April 22, 1991 under the advice of Dr. Clive Temperton, due to a
+      bi-directional memory error, to which  that version of the routines 
+      was subject.  However, Cray Research, Inc. supports routines CFTFAX 
+      and CFFT99 in library bnchm, on shavano, under directory 
+      /usr/unicos/bnchlib/bin.
+
+      Note: Cray Research Inc. provides routines FFTFAX and RFFTMLT
+      for multiple FFT capability.  Users are advised that the calling
+      sequences of the routines may differ from those described herein,
+      and that returned numerical values may differ slightly from one 
+      version to another.  These routines reside in library sci, in
+      segldr's default search path.
+ 
+ Overview
+ -----------------------------------------------------------------
+ 
+      This document describes
+ 
+         + how to call the real transform routines in NCAR's
+           ecmfft library
+ 
+         + how to obtain source code for these routines
+ 
+         + examples of simple working programs
+ 
+         + where to look for further reference.
+ 
+      This UserDoc publication replaces the Consulting Office document,
+      ``ecmfft on the NCAR CRAY Computers.'' The following pages include a
+      general description and an algorithm description of these FFT routines:
+ 
+      Real Transforms
+      ---------------
+      SET99     This is the initialization routine for FFT99 and FFT991.
+ 
+      FFT991    Given an array of real gridpoint vectors, this routine returns
+                a set of Fourier coefficient vectors.  It also performs the
+                inverse transforms.
+ 
+      FFT99     This routine performs exactly like FFT991, except that the
+                order of the elements in the gridpoint vectors is different
+                from the order in FFT991.
+ 
+      Note:  ecmfft is a binary library maintained on the CRAY computers.  If
+      you want to obtain the source code for these transforms, see ``Source
+      Code for Multiple FFTs'' later in this document.
+ 
+ 
+ ROUTINE SET99 (TRIGS, IFAX, N)
+ -----------------------------------------------------------------
+ 
+      SET99 is the initialization routine for FFT99 and FFT991.  You must
+      call it
+ 
+         + before the first call to FFT99 or FFT991 and
+ 
+         + whenever the transform length N changes.
+ 
+      Argument Dimensions
+ 
+        IFAX (13), TRIGS (3*N/2+1)
+ 
+     Input Parameters
+ 
+     N         is the length of the transforms.  It is an integer greater than
+               8 that has no prime factor greater than 5.  If N is an unac-
+               ceptable value, a fatal error results.
+ 
+     IFAX      is an integer array.  Its dimension depends on the factoriza-
+               tion of N.  A dimension of 13 is big enough for all values of N
+               less than 1,000,000.
+ 
+     TRIGS     is a real array of dimension 3*N/2+1.
+ 
+     Output Parameters
+ 
+     IFAX      contains the factorization of N.  IFAX(1) is the number of fac-
+               tors.  The routine stores the factors in IFAX(2), IFAX(3),
+               IFAX(4), and so on.
+ 
+     TRIGS     is an array of trigonometric function values subsequently used
+               by routines FFT99 and FFT991.
+ 
+ 
+ ROUTINE FFT991 (A, WORK, TRIGS, IFAX, INC, JUMP, N, LOT, ISIGN)
+ -----------------------------------------------------------------
+ 
+      After calling SET99, you can call FFT991 to perform the Fourier
+      transforms.  Given a set of real gridpoint vectors, FFT991 returns a set
+      of Fourier coefficient vectors.  Inversely, given a set of Fourier coef-
+      ficient vectors, FFT991 returns a set of real gridpoint vectors.
+ 
+      Argument Dimensions
+ 
+        REAL  A ((N+2) * LOT)
+        REAL  WORK ((N+1) * LOT), TRIGS (3*N/2+1)
+        INTEGER IFAX (13)
+ 
+     Input Parameters
+ 
+     A         is a real array of minimum dimension (N+2)*LOT.  It contains
+               the input gridpoint or coefficient vectors, where N is the
+               transform length and LOT is the number of vectors to be
+               transformed. The array contains LOT vectors, each of length
+               N+2.  The input argument INC defines the distance skipped
+               between vector elements; the input argument JUMP defines the
+               distance skipped between first elements of consecutive vectors.
+ 
+               Array A is easy to describe when INC=1 and JUMP=N+2:
+ 
+                  + When N is even and coefficients are to be transformed, the
+                    user defines the first N+2 elements of array A as
+                    a(0),b(0),a(1),b(1),...,a(N/2),b(N/2).  These a and b
+                    values are the first sequence of coefficients, and it is
+                    understood that b(0) and b(N/2) are zeros.  The user
+                    defines the next N+2 elements of A similarly, as the
+                    second sequence of coefficients to be transformed.  The
+                    user continues this process until LOT vectors have been
+                    defined.
+ 
+                  + When N is odd and coefficients are to be transformed, the
+                    user defines the first N+2 elements of array A as
+                    a(0),b(0),a(1),b(1),...,a((N-1)/2),b((N-1)/2),0.  These a
+                    and b values are the first sequence of coefficients, and
+                    it is understood that b(0) is zero.  The user defines the
+                    next N+2 elements of A similarly, as the second sequence
+                    of coefficients to be transformed.  The user continues
+                    this process until LOT vectors have been defined.
+ 
+                  + When gridpoints are to be transformed, the user defines
+                    the elements of array A as follows: the first N+2 elements
+                    of A are x(0),x(1),...,x(N-1),0,0 where
+                    x(0),x(1),...,x(N-1) is the first sequence of gridpoints
+                    to be transformed.  The next N+2 elements of A are defined
+                    similarly in terms of the second sequence of gridpoints to
+                    be transformed.  The user continues this process until LOT
+                    vectors have been defined.
+ 
+               For other values of INC and JUMP, the user still defines LOT
+               vectors of length N+2 within array A.  However, when INC is
+               greater than 1, some elements of A are skipped when the vectors
+               are defined.  And when A is a multi-dimensional array, JUMP may
+               be chosen so that the vectors are parallel to a specified
+               dimension.
+ 
+     WORK      is a real work array of dimension (N+1)*LOT.
+ 
+     TRIGS     is a real array of dimension 3*N/2+1 initialized by SET99.
+ 
+     IFAX      is an integer array of dimension 13 initialized by SET99.
+ 
+     INC       is the distance skipped-in words-between successive elements of
+               a single vector.  Set INC=1 for consecutively stored data.
+ 
+     JUMP      is the distance skipped-in words-between the first elements of
+               successive vectors.
+               Note: To avoid memory bank conflicts on the CRAY computers, do
+               not arrange data so that JUMP is a multiple of 4.
+ 
+     N         is the length of the transforms.  N is an integer greater than
+               8 that has no prime factor greater than 5.
+ 
+     LOT       is the number of transforms to be done simultaneously.
+ 
+     ISIGN     = -1 transforms gridpoint values to coefficients.
+               = +1 transforms coefficients to gridpoint values.
+ 
+     Output Parameters
+ 
+     A         If ISIGN = +1 and LOT coefficient vectors are supplied, each
+               containing the N real values a(0),b(0),...,a(N/2),b(N/2), then
+               the result consists of LOT real vectors, each containing the
+               corresponding N+2 gridpoint values x(0),x(1),...,x(N-1),0,0.
+ 
+               If ISIGN = -1, and LOT gridpoint vectors are supplied, each
+               containing the N real values x(0),x(1),...,x(N-1),0,0, then the
+               result consists of LOT real vectors, each containing the
+               corresponding N+2 coefficients a(0),b(0),...,a(N/2),b(N/2).
+ 
+               A call to FFT991 with ISIGN= +1 followed by a call with ISIGN
+               = -1 returns the original data.  In other words, the result of
+               the FFT99 transform is normalized.
+ 
+               Note: The gridpoint values x(j) are real, which implies that
+               b(0)=b(N/2)= 0.  For a  call with ISIGN= +1, you do not need to
+               supply these zeros.
+ 
+ 
+ ROUTINE FFT99 (A, WORK, TRIGS, IFAX, INC, JUMP, N, LOT, ISIGN)
+ -----------------------------------------------------------------
+ 
+      The only difference between FFT99 and FFT991 is the altered order of the
+      gridpoint vector elements in array A on both input and output.  Other-
+      wise, FFT99 has the same argument dimensions and input parameters as
+      FFT991.
+ 
+      Argument Dimensions
+ 
+        REAL  A ((N+2) * LOT)
+        REAL  WORK ((N+1) * LOT), TRIGS (3*N/2+1)
+        INTEGER IFAX (13)
+ 
+ 
+     Input Parameters
+ 
+     A         is a real array of minimum dimension (N+2)*LOT.  It contains
+               the input gridpoint or coefficient vectors, where N is the
+               transform length and LOT is the number of vectors to be
+               transformed. The array contains LOT vectors, each of length
+               N+2.  The input argument INC defines the distance skipped
+               between vector elements; the input argument JUMP defines the
+               distance skipped between first elements of consecutive vectors.
+ 
+               Array A is easy to describe when INC=1 and JUMP=N+2:
+ 
+                  + When N is even and coefficients are to be transformed, the
+                    user defines the first N+2 elements of array A as
+                    a(0),b(0),a(1),b(1),...,a(N/2),b(N/2).  These a and b
+                    values are the first sequence of coefficients, and it is
+                    understood that b(0) and b(N/2) are zeros.  The user
+                    defines the next N+2 elements of A similarly, as the
+                    second sequence of coefficients to be transformed.  The
+                    user continues this process until LOT vectors have been
+                    defined.
+ 
+                  + When N is odd and coefficients are to be transformed, the
+                    user defines the first N+2 elements of array A as
+                    a(0),b(0),a(1),b(1),...,a((N-1)/2),b((N-1)/2),0.  These a
+                    and b values are the first sequence of coefficients, and
+                    it is understood that b(0) is zero.  The user defines the
+                    next N+2 elements of A similarly, as the second sequence
+                    of coefficients to be transformed.  The user continues
+                    this process until LOT vectors have been defined.
+ 
+                  + When gridpoints are to be transformed, the user defines
+                    the elements of array A as follows: the first N+2 elements
+                    of A are x(N-1),x(0),x(1),...,x(N-1),x(0) where
+                    x(0),x(1),...,x(N-1) is the first sequence of gridpoints
+                    to be transformed.  The next N+2 elements of A are defined
+                    similarly in terms of the second sequence of gridpoints to
+                    be transformed.  The user continues this process until LOT
+                    vectors have been defined.
+ 
+               For other values of INC and JUMP, the user still defines LOT
+               vectors of length N+2 within array A.  However, when INC is
+               greater than 1, some elements of A are skipped when the vectors
+               are defined.  And when A is a multi-dimensional array, JUMP may
+               be chosen so that the vectors are parallel to a specified
+               dimension.
+ 
+     WORK      is a real work array of dimension (N+1)*LOT.
+ 
+     TRIGS     is a real array of dimension 3*N/2+1 initialized by SET99.
+ 
+     IFAX      is an integer array of dimension 13 initialized by SET99.
+ 
+     INC       is the distance skipped-in words-between successive elements of
+               a single vector.  Set INC=1 for consecutively stored data.
+ 
+     JUMP      is the distance skipped-in words-between the first elements of
+               successive vectors.
+               Note: To avoid memory bank conflicts on the CRAY computers, do
+               not arrange data so that JUMP is a multiple of 4.
+ 
+     N         is the length of the transforms.  N is an integer greater than
+               8 that has no prime factor greater than 5.
+ 
+     LOT       is the number of transforms to be done simultaneously.
+ 
+     ISIGN     = -1 transforms gridpoint values to coefficients.
+               = +1 transforms coefficients to gridpoint values.
+ 
+     Output Parameters
+ 
+     A         If ISIGN = +1 and LOT coefficient vectors are supplied, each
+               containing the N real values a(0),b(0),...,a(N/2),b(N/2), then
+               the result consists of LOT real vectors, each containing the
+               corresponding N+2 gridpoint values x(N-1),x(0),x(1),...,x(N-
+               1),x(0).
+ 
+               If ISIGN = -1 and LOT gridpoint vectors are supplied, each con-
+               taining the N real values x(N-1),x(0),x(1),...,x(N-1),x(0) ,
+               then the result consists of LOT real vectors, each containing
+               the corresponding N+2 coefficients a(0),b(0),...,a(N/2),b(N/2).
+ 
+               A call to FFT99 with ISIGN = +1 followed by a call with ISIGN
+               = -1 returns the original data.  In other words, the result of
+               the FFT99 transform is normalized.
+ 
+               Note: The gridpoint values x(j) are real, which implies that
+               b(0)=b(N/2)=0.  For a call with ISIGN = +1, you do not need to
+               supply these zeros.
+ 
+ 
+ Source Code for Multiple FFTs
+ -----------------------------------------------------------------
+ 
+ 
+      SCD supports other versions of these FFT routines, and CRAY Research,
+      Inc. provides a version in its "sci" library.  The routines in these
+      other versions have similar calling sequences as the routines described
+      above; however, valid values of the transform length N and some dimen-
+      sions may differ from one version to another.  Also, returned numerical
+      values differ from one version to another.
+ 
+      Real Transforms
+      ---------------
+ 
+      ECMWF provided the real transforms for the ecmfft library.  These FFTs
+      are among the fastest in the software libraries supported by SCD.  
+      Under legal agreement with ECMWF, NCAR cannot disclose the source code 
+      for these real transforms.  However, a slower all-FORTRAN version
+      is available.
+ 
+      To obtain source code for the real routines via SCD's software
+      distribution utility dsl, logon to the dsl computer as specified
+      in UserDoc "Distributed Software Libraries", cd ecmfft, and get
+      the desired file: fft99f.f.  Note: to order this UserDoc, see the 
+      instructions at the end of this document.
+ 
+ Example 1  Transforming Column Vectors in a Real Array
+ -----------------------------------------------------------------
+ 
+ 
+      The two-dimensional real array A contains gridpoint values, arranged as
+      64 column vectors, each of length 36.  The elements of each vector are
+      initialized to one.  The program calls the initialization routine SET99
+      and then calls FFT99 once to transform all the vectors to coefficient
+      vectors.  The exact transformed vectors have the following form: the
+      real part of the first element is equal to one, and all other elements
+      are equal to zero.
+ 
+            PROGRAM   SAMPLE1
+            PARAMETER (NROWS=36, NCOLS=64)
+            REAL      A(NROWS+2,NCOLS)
+            REAL      WORK((NROWS+1)*NCOLS)
+            REAL      TRIGS(3*NROWS/2+1)
+            INTEGER   IFAX(13)
+      C
+      C INITIALIZE INPUT ARRAY
+      C
+            DO 10 I=1,NROWS+2
+            DO 10 J=1,NCOLS
+              A(I,J) =   1.0
+         10 CONTINUE
+      C
+      C INITIALIZE OTHER ARGUMENTS
+      C
+            INC   =  1
+            JUMP  =  NROWS + 2
+            N     =  NROWS
+            LOT   =  NCOLS
+            ISIGN =  -1
+      C
+      C CALL INITIALIZATION AND TRANSFORM ROUTINES
+      C
+            CALL SET99  (TRIGS, IFAX, N)
+            CALL FFT99  (A, WORK, TRIGS, IFAX, INC, JUMP, N, LOT, ISIGN)
+      C
+            STOP
+            END
+ 
+ 
+ Example 2: Transforming Row Vectors in a Real Array
+ -----------------------------------------------------------------
+ 
+ 
+      The two-dimensional real array A contains gridpoint values, arranged as
+      36 row vectors, each of length 64.  The elements of each vector are ini-
+      tialized to one.  The program calls the initialization routine SET99
+      and then calls FFT99 once to transform all the vectors to coefficient
+      vectors.  The exact transformed vectors have the following form: the
+      real part of the first element is equal to one, and all other elements
+      are equal to zero.
+ 
+            PROGRAM   SAMPLE2
+            PARAMETER (NROWS=36, NCOLS=64)
+            REAL      A(NROWS,NCOLS+2)
+            REAL      WORK((NCOLS+1)*NROWS)
+            REAL      TRIGS(3*NCOLS/2+1)
+            INTEGER   IFAX(13)
+      C
+      C INITIALIZE INPUT ARRAY
+      C
+            DO 10 I=1,NROWS
+            DO 10 J=1,NCOLS+2
+              A(I,J) =   1.0
+         10 CONTINUE
+      C
+      C INITIALIZE OTHER ARGUMENTS
+      C
+            INC   =  NROWS
+            JUMP  =  1
+            N     =  NCOLS
+            LOT   =  NROWS
+            ISIGN =  -1
+      C
+      C CALL INITIALIZATION AND TRANSFORM ROUTINES
+      C
+            CALL SET99  (TRIGS, IFAX, N)
+            CALL FFT99  (A, WORK, TRIGS, IFAX, INC, JUMP, N, LOT, ISIGN)
+            STOP
+            END
+ 
+ 
+ References
+ -----------------------------------------------------------------
+ 
+ 
+      For further reference, see
+ 
+      [1]  Temperton, Clive. ``Self-Sorting Mixed-Radix Fast Fourier
+           Transforms.'' Journal of Computational Physics Volume 52 (1983):
+                         ------- -- ------------- -------
+           pp. 1-23.
+ 
+      [2]  Temperton, Clive. ``Fast Mixed-Radix Real Fourier Transforms.''
+           Journal of Computational Physics Volume 52 (1983): pp. 340-350.
+           ------- -- ------------- -------
+ 
+      [3]  Pernice, Michael.  ``Report on Testing of FFT99 and FFT991.'' The
+                                                                         ---
+           Record Volume 6, Number 12 (December 1985): pp. 7-10.
+           ------
+ 
+ 
+ SCD Documentation and Consulting
+ -----------------------------------------------------------------
+ 
+ 
+      To order SCD-produced documentation, send e-mail to one of the following
+      addresses:  maryb@ncar.ucar.edu on the Internet or maryb at
+      ncar.ucar.edu on the IBM 4381 (IO) front-end computer, or call (303)
+      497-1232.
+ 
+      The SCD Documentation Catalog and order form are available online via
+      anonymous FTP on the computer named windom.ucar.edu.  To obtain a copy
+      of the file, type:
+ 
+        ftp windom.ucar.edu <return>
+        --- ------ ---- ---  ------
+ 
+     When prompted for a login name, type:
+ 
+       anonymous <return>
+       ---------  ------
+ 
+    Enter your last name at the password prompt, wait for the ftp> prompt,
+    then type:
+ 
+      get docs/userdoc.catalog <return>
+      --- ---- ------- -------  ------
+      quit <return>
+      ----  ------
+ 
+   To contact an SCD consultant, send e-mail to consult1@ncar.ucar.edu on the
+   Internet or consult1 at ncar.ucar.edu on the IBM 4381 front-end computer,
+   or call (303) 497-1278.

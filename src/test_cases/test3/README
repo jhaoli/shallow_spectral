@@ -1,0 +1,9 @@
+Test Case 3 - Steady Zonal Flow with Compact Support
+----------------------------------------------------
+
+Experiment 3 tests the full equations with semi-implicit time stepping.
+Contour plots of the height field have been enabled with
+orthographic projection.
+The flow has been rotated with respect to the coordinate axis by
+an angle pi/2-0.05 radians.
+The center of the viewpoint was changed to 45N and 90W.

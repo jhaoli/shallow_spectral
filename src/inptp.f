@@ -1,0 +1,307 @@
+      SUBROUTINE INPTP(FNAME,TIME,MAXH,LDIAG,ZETASC,DIVSC,PHISC,
+     $                 MM,NN,KK)
+C                                                                              
+C THIS IS THE INPUT ROUTINE FOR PROGNOSTIC FIELDS 
+C
+C CALLED BY: ANLYTC
+C CALLS: INFLD
+C
+C REVISIONS:
+C 7-13-92 CHANGE TO CCM CODING CONVENTIONS (R. JAKOB)
+C
+C---- Model Parameters -------------------------------------------------
+C
+C NETCDF DECLARATIONS
+      INCLUDE 'netcdf.inc'
+C
+C---- Common Blocks ----------------------------------------------------
+C
+C GLOBAL CONSTANTS
+      INCLUDE 'consts.i'
+C
+C------------ Arguments ------------------------------------------------
+C
+C     Input
+C
+C FILENAME FOR SPECTRAL COEFFICIENTS
+      CHARACTER*80 FNAME
+C TIME OF REFERENCE SOLUTION (SECONDS)
+      REAL TIME
+C DIMENSION OF LDIAG
+      INTEGER MAXH
+C COEFFICIENT INDEX
+      INTEGER LDIAG(0:MAXH,2)
+C
+C     Output
+C
+C VORTICITY COEFFICIENTS FROM FILE
+      COMPLEX ZETASC(*)
+C DIVERGENCE COEFFICIENTS FROM FILE
+      COMPLEX DIVSC(*)
+C GEOPOTENTIAL COEFFICIENTS FROM FILE
+      COMPLEX PHISC(*)
+C SPECTRAL TRUNCATION PARAMETERS
+      INTEGER MM,NN,KK
+C
+C------ Local Variables ------------------------------------------------
+C                                                                               
+      REAL ANGLE
+C
+C     NETCDF VARIABLES
+C
+C     ERROR RETURN CODE
+      INTEGER IRET
+C     NETCDF ID
+      INTEGER CDFID
+C     VARIABLE IDS
+      INTEGER CASEID, ROTID, TIMEID, MMID,NNID, KKID,
+     $        ZETAID, DIVID, PHIID
+C     DIMENSION ID
+      INTEGER TDIM
+C     TIME DIMENSION NAME, MAX SIZE, CURRENT VALUE
+      INTEGER DIMSIZ
+      CHARACTER*(MAXNCNAM) DIMNAM
+      REAL CTIME
+C     VARIABLE SHAPES
+      INTEGER DIMS(4)
+      INTEGER STEP
+C
+      INTEGER CASE,N,I
+C
+C----- Executable Statements -------------------------------------------
+C
+C     SET ERROR HANDLING FOR NETCDF
+C     (PRINT MESSAGES, BUT DO NOT TERMINATE)
+C
+      CALL NCPOPT(NCVERBOS)
+C
+C     OPEN EXISTING NETCDF FILE
+C
+      CDFID = NCOPN(FNAME,NCNOWRIT,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,330) FNAME
+  330    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT OPEN NETCDF FILE: ',A80,/,
+     $         ' CHECK FOR CORRECT FILE (NAMELIST PARAMETER FNIN) !')
+         STOP
+      ENDIF
+C
+C     GET VARIABLE IDS
+C
+      CASEID = NCVID(CDFID,'testcase',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,340) 
+  340    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND TESTCASE VARIABLE IN NETCDF FILE')
+         STOP
+      ENDIF
+      ROTID  = NCVID(CDFID,'rot_angle',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,350) 
+  350    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND ROTATION ANGLE VARIABLE IN NETCDF FILE')
+         STOP
+      ENDIF
+      TIMEID = NCVID(CDFID,'time',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,360) 
+  360    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND TIMESTEP VARIABLE IN NETCDF FILE')
+         STOP
+      ENDIF
+      MMID   = NCVID(CDFID,'mm',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,370) 
+  370    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND M-TRUNCATION VARIABLE IN NETCDF FILE')
+         STOP
+      ENDIF
+      NNID   = NCVID(CDFID,'nn',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,380) 
+  380    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND N-TRUNCATION VARIABLE IN NETCDF FILE')
+         STOP
+      ENDIF
+      KKID   = NCVID(CDFID,'kk',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,390) 
+  390    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND K-TRUNCATION VARIABLE IN NETCDF FILE')
+         STOP
+      ENDIF
+      ZETAID = NCVID(CDFID,'vorticity',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,400) 
+  400    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND VORTICITY ARRAY IN NETCDF FILE')
+         STOP
+      ENDIF
+      DIVID  = NCVID(CDFID,'divergence',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,410) 
+  410    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND DIVERGENCE ARRAY IN NETCDF FILE')
+         STOP
+      ENDIF
+      PHIID  = NCVID(CDFID,'geopotential',IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,420) 
+  420    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT FIND GEOPOTENTIAL ARRAY IN NETCDF FILE')
+         STOP
+      ENDIF
+C
+C     GET HIGH-RESOLUTION RUN PARAMETERS
+C
+      CALL NCVGT1(CDFID,CASEID,DIMS,CASE,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,430) 
+  430    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT READ TESTCASE VARIABLE FROM NETCDF FILE')
+         STOP
+      ENDIF
+C
+C     TEST FOR CORRECT TESTCASE
+C
+      IF (CASE .NE. ICOND) THEN
+         WRITE (0,480) CASE,ICOND
+  480    FORMAT(/,' STSWM: WARNING IN ROUTINE INPTP:',/,
+     $      ' TEST CASE OF REFERENCE SOLUTION INCONSISTENT',/,
+     $      ' WITH EXPECTED CASE FOR ANALYTIC SOLUTION',/,
+     $      ' CHECK FOR CORRECT FILE (NAMELIST PARAMETER FNIN) !',/,
+     $      ' FILE CASE = ',I2,' EXPECTED CASE = ',I2)
+      ENDIF
+C
+      CALL NCVGT1(CDFID,MMID,DIMS,MM,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,440) 
+  440    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT READ M-TRUNCATION VARIABLE FROM NETCDF FILE')
+         STOP
+      ENDIF
+      CALL NCVGT1(CDFID,NNID,DIMS,NN,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,450) 
+  450    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT READ N-TRUNCATION VARIABLE FROM NETCDF FILE')
+         STOP
+      ENDIF
+      CALL NCVGT1(CDFID,KKID,DIMS,KK,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,460) 
+  460    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT READ K-TRUNCATION VARIABLE FROM NETCDF FILE')
+         STOP
+      ENDIF
+C
+C     TEST FOR ARRAY OVERFLOW
+C
+      IF ((MM .LT. MAXH) .OR. (NN .LT. MAXH)) THEN
+         WRITE (0,520) MAXH
+  520    FORMAT(/,' STSWM: WARNING IN ROUTINE INPTP:',/,
+     $      ' SPECTRAL COEFFICIENTS IN REFERENCE SOLUTION',/,
+     $      ' ARE UNDEFINED (ASSUMING = 0.0) ',/,
+     $      ' ADJUST PARAMETER MAXH IN FILE ''PARAMS.i'':',/,
+     $      ' MAXH = ',I4)
+      ELSEIF ((MAXH .LT. MM) .OR. (MAXH .LT. NN)) THEN
+         WRITE(0,530) MAXH
+  530    FORMAT(/,' STSWM: WARNING IN ROUTINE INPTP:',/,
+     $         ' SPECTRAL COEFFICIENTS FROM REFERENCE SOLUTION',/,
+     $         ' HAVE BEEN TRUNCATED (PARAMETER MAXH) TO T-',I4)
+      ENDIF
+C
+      CALL NCVGT1(CDFID,ROTID,DIMS,ANGLE,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,470) 
+  470    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT READ ROTATION ANGLE VARIABLE FROM NETCDF FILE')
+         STOP
+      ENDIF
+C
+C     TEST FOR CORRECT ANGLE
+C
+      IF (ANGLE .NE. ALPHA) THEN
+         WRITE (0,510) ANGLE,ALPHA
+  510    FORMAT(/,' STSWM: WARNING IN ROUTINE INPTP:',/,
+     $      ' ROT. ANGLE OF REFERENCE SOLUTION INCONSISTENT',/,
+     $      ' WITH EXPECTED ANGLE FOR ANALYTIC SOLUTION',/,
+     $      ' CHECK FOR CORRECT FILE (NAMELIST PARAMETER FNIN) !',/,
+     $      ' FILE ANGLE = ',F5.3,' EXPECTED ANGLE = ',F5.3)
+      ENDIF
+C
+C     FIGURE OUT INDEX OF DESIRED TIME
+C
+      TDIM = NCDID(CDFID,'timestep',IRET)
+      CALL NCDINQ(CDFID,TDIM,DIMNAM,DIMSIZ,IRET)
+C
+      DO 100 I = 1,DIMSIZ
+         DIMS(1) = I
+         CALL NCVGT1(CDFID,TIMEID,DIMS,CTIME,IRET)
+C
+C        COMPARE MODEL TIME AND REFERENCE SOLUTION TIME
+C
+         IF (ABS(3600.0*CTIME-TIME) .LE. 0.01) THEN
+            STEP = I
+            GOTO 110
+         ENDIF
+  100 CONTINUE
+C
+C     COULD NOT FIND REFERENCE SOLUTION AT TIME
+C
+      WRITE(0,490) CTIME,TIME/3600.0
+  490 FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $      ' TIMEMARK OF REFERENCE SOLUTION INCONSISTENT',/,
+     $      ' WITH EXPECTED TIME FOR ANALYTIC SOLUTION',/,
+     $      ' CHECK TIMEINTERVAL ERRFRQ IN NAMELIST INPUT !',/,
+     $      ' FILE TIME = ',0PF6.2,' EXPECTED TIME = ',0PF6.2)
+      STOP
+C
+C     FOUND DESIRED TIME IN NETCDF FILE
+C
+  110 CONTINUE
+      WRITE(6,500) CTIME
+  500 FORMAT(/,' INFORMATIONAL NOTE FROM ROUTINE INPTP:',/,
+     $      ' READING REFERENCE SOLUTION AT TIME = ',0PF6.2)
+C
+C     DETERMINE LDIAG(0:NN,1:2), DIAGONAL LENGTHS AND CUMULATIVE
+C     DISPLACEMENTS 
+C
+      LDIAG(0,1) = MAXH+1
+      LDIAG(0,2) = 0
+C
+      DO 10 N=1,MAXH
+         LDIAG(N,1) = MAXH+1-N
+         LDIAG(N,2) = LDIAG(N-1,1) + LDIAG(N-1,2)
+   10 CONTINUE
+C                                                                               
+C     READ VORTICITY
+C
+      CALL INFLD(CDFID,ZETAID,STEP,MAXH,LDIAG,MM,NN,KK,ZETASC)                             
+C                                                                               
+C     READ DIVERGENCE
+C                                                                               
+      CALL INFLD(CDFID,DIVID,STEP,MAXH,LDIAG,MM,NN,KK,DIVSC)                             
+C                                                                               
+C     READ GEOPOTENTIAL
+C                                                                               
+      CALL INFLD(CDFID,PHIID,STEP,MAXH,LDIAG,MM,NN,KK,PHISC)                             
+C
+C     CLOSE FILE
+C
+      CALL NCCLOS(CDFID,IRET)
+      IF (IRET .NE. 0) THEN
+         WRITE(0,540)
+  540    FORMAT(/,' STSWM: FATAL ERROR IN ROUTINE INPTP:',/,
+     $         ' CANNOT CLOSE NETCDF FILE')
+         STOP
+      ENDIF
+C
+C     SET TRUNCATION PARAMETERS
+C
+      MM = MAXH
+      NN = MAXH
+      KK = MAXH
+C
+      RETURN                                                                    
+      END                                                                       

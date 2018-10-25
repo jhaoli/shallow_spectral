@@ -1,0 +1,8 @@
+Test Case 1 - Advection of Cosine Bell
+--------------------------------------
+
+Experiment 1 tests the advection equation code. 
+Graphical output has been disabled so that this test case can be 
+run without NCAR graphics.
+Coordinate axis and pole coincide (unrotated case).
+Only standard output is generated from the error analysis.

@@ -1,0 +1,42 @@
+ $PHYVAR          
+ ALPHA  =  0.0,
+ A      =  ,        
+ OMEGA  =  ,       
+ GRAV   =  ,      
+ HDC    =  ,  
+ $END
+ $EXPDEF            
+ DT     =   900.0,  
+ EGYFRQ =   999.0,    
+ ERRFRQ =   0.25,  
+ SPCFRQ =   999.0, 
+ TAUE   =   1.0, 
+ TAUO   =   999.0,   
+ GPHFRQ =   1.0,   
+ AFC    =   ,   
+ SITS   =   .FALSE.,  
+ FORCED =   ,
+ MOMENT =   , 
+ ICOND  =   2,      
+ $END
+ $PLTDEF           
+ LGPHS  = .TRUE.,   
+ LCONT  = .FALSE.,  
+ LOP    = .FALSE.,
+ LCP    = .FALSE.,   
+ LPSP   = .TRUE.,   
+ LG     = .TRUE.,  
+ LU     = .FALSE.,
+ LV     = .FALSE.,   
+ LZ     = .FALSE.,  
+ LD     = .FALSE., 
+ LVV    = .FALSE.,  
+ LVVG   = .FALSE., 
+ POLAT  = ,   
+ POLNG  = , 
+ POROT  = ,     
+ $END
+ $FNAMES
+ FNIN   = , 
+ FNOUT  = ,
+ $END

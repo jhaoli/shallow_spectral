@@ -1,0 +1,42 @@
+ $PHYVAR          
+ ALPHA  =  0.0,      
+ A      =  ,        
+ OMEGA  =  ,       
+ GRAV   =  ,      
+ HDC    =  0.5E16,  
+ $END
+ $EXPDEF            
+ DT     =   1200.0,  
+ EGYFRQ =   1.0,    
+ ERRFRQ =   24.0,  
+ SPCFRQ =   24.0, 
+ TAUE   =   24.0, 
+ TAUO   =   24.0,   
+ GPHFRQ =   24.0,   
+ AFC    =   ,   
+ SITS   =   .TRUE.,  
+ FORCED =   .FALSE.,
+ MOMENT =   .FALSE., 
+ ICOND  =   7,      
+ $END
+ $PLTDEF           
+ LGPHS  = .TRUE.,   
+ LCONT  = .TRUE.,  
+ LOP    = .FALSE.,
+ LCP    = .FALSE.,   
+ LPSP   = .TRUE.,   
+ LG     = .TRUE.,  
+ LU     = .FALSE.,
+ LV     = .FALSE.,   
+ LZ     = .FALSE.,  
+ LD     = .FALSE., 
+ LVV    = .FALSE.,  
+ LVVG   = .FALSE., 
+ POLAT  = ,   
+ POLNG  = , 
+ POROT  = ,     
+ $END
+ $FNAMES
+ FNIN   = '../netcdf/REF0077.cdf', 
+ FNOUT  = 'REF0007.cdf',
+ $END

@@ -1,0 +1,7 @@
+Test Case 2 - Solid Body Rotation
+---------------------------------
+
+Experiment 2 tests the full equations with explicit time stepping.
+Contour plots of the height field have been enabled for polar
+stereographic projection.
+Coordinate axis and pole coincide (unrotated case).

@@ -1,0 +1,11 @@
+Test Case 6 - Rossby-Haurwitz Wave
+----------------------------------
+
+Experiment 6 tests the full equations with semi-implicit time stepping.
+For this experiment horizontal diffusion has been enabled.
+The kinetic and potential
+energy spectra are plotted, and the conservation properties computed.
+Error analysis has been disabled.
+Contour plots of the height have been enabled on a cylindrical projection,
+with the center of the viewpoint on the international dateline.
+

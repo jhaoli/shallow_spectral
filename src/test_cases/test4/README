@@ -1,0 +1,12 @@
+Test Case 4 - Forced Low in a Mid-Latitude Jet Stream
+-----------------------------------------------------
+
+Experiment 4 tests the full equations with semi-implicit time stepping.
+Contour plots of the height, eastward wind, northward wind, divergence and
+vorticity field and vector plots of the wind have been enabled 
+on an orthographic projection.
+Momentum forcing was enabled so that the low moves eastward in the flow.
+
+WARNING: this case has very likely a bug in it at the moment  - The errors
+are significantly too large !
+

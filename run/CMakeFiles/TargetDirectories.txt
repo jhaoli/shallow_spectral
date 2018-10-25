@@ -1,0 +1,6 @@
+/home/qjz/work/study/shallow_spectral/run/CMakeFiles/rebuild_cache.dir
+/home/qjz/work/study/shallow_spectral/run/CMakeFiles/edit_cache.dir
+/home/qjz/work/study/shallow_spectral/run/CMakeFiles/stswm_test.exe.dir
+/home/qjz/work/study/shallow_spectral/run/lib/CMakeFiles/rebuild_cache.dir
+/home/qjz/work/study/shallow_spectral/run/lib/CMakeFiles/edit_cache.dir
+/home/qjz/work/study/shallow_spectral/run/lib/CMakeFiles/fftpack.dir

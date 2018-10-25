@@ -1,0 +1,970 @@
+File: docu/description.txt
+
+
+
+           Description of Software for the
+           -------------------------------
+
+        Spectral Transform Shallow Water Model
+        --------------------------------------
+
+                  Version 2.0
+                  -----------
+
+                      by
+
+                Ruediger Jakob
+       National Center for Atmospheric Research
+             Boulder, CO 80307-3000
+
+                  August 1992
+
+
+
+Table of Contents
+-----------------
+
+Section
+  1) Introduction
+  2) Overall Program Flow
+  3) Compile Time Parameters
+  4) Run Time Parameters
+  5) Input/Output Files
+  6) Compilation Guide
+  7) Execution Guide
+
+References
+
+Appendix
+
+  A) Example NAMELIST Input File
+  B) Calling Tree
+  C) File Format Description
+  D) Table of Reference Solutions
+
+
+Section 1: Introduction
+-----------------------
+
+1.1) Purpose
+
+This note describes the software for a global shallow water model
+based on the spectral transform method. The particular 
+implementation is set up to provide the reference solutions to the 
+test cases proposed by Williamson et. al. [6]. 
+The actual solutions are published in a Technical
+Note by Jakob et. al. [3]. In addition this code can serve 
+as an educational tool for numerical studies of the shallow water
+equations. A detailed description of the spectral transform method, 
+and a derivation of the equations used in this software, can be 
+found in the Technical Note by Hack and Jakob [2]. 
+
+The Fortran source code of this model is about 10,000 lines long and 
+uses the NCAR graphics library, a Fast Fourier Transform library
+routine, and the netCDF library for portability of real data reference 
+solutions.
+
+1.2) How to get the software
+
+The software is available via anonymous FTP from the machine
+
+ftp.ucar.edu (IP address 128.117.64.4)
+
+in directory
+
+chammp/shallow
+
+Please read the file 'README' in that directory for directions on 
+how to obtain needed library routines and for latest corrections
+and changes. An electronic copy of the software description you are 
+reading is available in directory 'docu' as file 'description.txt'.
+
+If you have difficulties accessing these files,
+please contact the NCAR computer consulting office at
+303-497-1278 (email: consult1@ncar.ucar.edu).
+Software bugs, along with suggested fixes, should be reported to
+the email address
+
+stswm@ncar.ucar.edu
+
+Messages to this address will be forwarded to the authors.
+
+1.3) Relation to NCAR Community Climate Model
+
+The spectral transform algorithm of this model follows closely the
+NCAR Community Climate Model's handling of the dynamical part of
+the primitive equations [5]. As in the full model, time history is 
+kept in gridpoint space, semi-implicit time differencing is
+standard (with explicit time differencing as an option), and
+momentum forcing terms can be included. 
+
+1.4) Acknowledgments
+
+This code has evolved from a spectral shallow water model written
+by J.J. Hack (NCAR/CGD) to compare numerical schemes designed to
+solve the divergent barotropic equations in spherical geometry [1]. 
+The major change to the original code is that time history of the
+state information is now carried in gridpoint space as opposed
+to spectral space. Analysis and graphics routines have all been 
+generalized and initialization and analysis code for the test cases
+in Williamson et. al. [6] have been included. 
+Special thanks to Jim Hack and David Williamson who helped in 
+the design and testing of this code.
+The normal mode initialization software used to generate the
+initial conditions for test case 7 was obtained from
+Andy van Tuyle and Ron Errico. It is not distributed with this code.
+I also want to acknowledge the debugging help of the Scientific 
+Computing Division's consulting group.
+
+This work was funded by the Department of Energy's "Computer Hardware, 
+Advanced Mathematics, Model Physics" research program as part of the
+U.S. Global Change Research Program. 
+
+
+Section 2: Overall Program Flow
+-------------------------------
+
+For the default model setup, the control flow in the main program 
+STSWM is as follows:
+
+The main program calls INPUT to set up arrays for the spectral 
+transformations and read the NAMELIST model parameters from the 
+standard input file (Section 4). Then routine INIT is called to 
+set up the steady state analytic solution for the test case 2 
+(parameter ICOND).
+The routine ANLYTC is then called to copy this
+analytic solution into the initial model state. 
+This initial condition is plotted by the call to PLOTS, 
+then an initial conservation analysis is done by NRGTCS,
+followed by an initial error analysis by ERRANL. The spectral
+coefficients of the initial state are computed by SHTRNS and ZD.
+If the NAMELIST parameter TAUO is set less than or equal TAUE,
+the initial spectral coefficients are written to a file by OUTPTP. 
+Similarly, if the NAMELIST parameter SPCFRQ is set less than
+or equal TAUE, a spectral analysis is done by SPCANL.
+
+The main loop of the program begins at label 500, where NSTEP
+is incremented for each time step, and TAU contains the model
+time in hours. Subroutine STEP is responsible for managing the
+circular index into the three time levels that are kept by the 
+model. STEP in turn calls COMP1 which advances the model state
+one time step. If requested by the NAMELIST parameters 
+EQYFRQ, SPCFRQ, ERRFRQ, GPHFRQ or TAUO, analysis and output 
+subroutines are called at the specified model time intervals. 
+NAMELIST parameter EQYFRQ specifies the time intervals between 
+conservation analysis in routine NRGTCS, parameter SPCFRQ the time 
+interval between spectral analysis in routine SPCANL, parameter 
+ERRFRQ the time interval between error analysis in routine ERRANL,
+parameter GPHFRQ the time interval between 2D plots of the model
+state in routine plots, and parameter TAUO the time interval 
+between output of spectral coefficients in routine OUTSPC.
+
+This main loop is continued until the model time TAU is larger 
+than the model duration (parameter TAUE) of 120 hours.
+Finally, the time series of the conservation analysis and 
+error analysis are plotted with calls to NRGTCS and ERRANL.
+
+The overall control flow of the program can be derived from the
+calling tree in Appendix B of this description.
+
+
+Section 3: Compile Time Parameters
+----------------------------------
+
+3.1) Changing spectral resolution
+
+Changes in the spectral resolution of the model require
+a recompilation. The truncation parameters are defined 
+and explained in the INCLUDE file 'PARAMS.i'. A selection 
+of common triangular truncation choices is given in comment 
+lines (Figure 1).  To change truncation, uncomment the new 
+truncation, comment the current truncation, and recompile.
+
+Figure 1. Common spectral truncation choices in file 'params.i'
+
+C
+C     COMMON TRIANGULAR TRUNCATION CASES (MM=NN=KK):
+C     T-42 (default), T-63, T-106
+C
+      PARAMETER (MM=42, NN=42, KK=42, NLAT=64, NLON=128)
+C     PARAMETER (MM=63, NN=63, KK=63, NLAT=96, NLON=192)
+C     PARAMETER (MM=106, NN=106, KK=106, NLAT=160, NLON=320)
+C     PARAMETER (MM=126, NN=126, KK=126, NLAT=192, NLON=384)
+C     PARAMETER (MM=213, NN=213, KK=213, NLAT=320, NLON=640)
+C
+
+The model requires NLAT to be even to take advantage
+of the hemispherical symmetry of the spherical basis functions.
+Also, NLON must have a factorization with only 2,3 and 5 as 
+prime factors to take advantage of the efficient ECMWF
+Fast Fourier Transform library.
+
+As described by [2], the unaliased transform of quadratic
+terms requires 
+
+   NLON .GE. 3*MM+1
+
+and
+
+   NLAT .GE. (3*KK+1)/2
+
+for triangular truncation.
+
+For high resolution runs where the analytic solutions are obtained
+from a NetCDF file, the following two parameters must be changed
+to prevent spectral truncation:
+
+RTRUNC: truncation limit for output of spectral coefficient during
+        a high resolution reference run (Default: 42).
+
+MAXH:   truncation limit for input of spectral coefficients from
+        reference high resolution solutions (Default: 42).
+
+
+3.2) Array size limits
+
+For extreme parameter choices, some arrays may be dimensioned too 
+small. In this case, the model will terminate with an error message 
+that mentions the array size parameter that must be changed. 
+
+In file PARAMS.i:
+
+NGRPHS: maximum number of data points for conservation analysis plots 
+        (quotient TAUE/EQYFRQ) and error analysis plots (quotient
+        TAUE/ERRFRQ).  (Default: 1100)
+
+In file CPCNRC.f:
+
+LRWK,LIWK: real and integer workspace size for NCAR graphics. See
+        documentation for NCAR Graphics, Version 3.00 for a 
+        discussion of these array sizes. (Defaults: LRWK=4000,LIWK=40000)
+
+Section 4: Run Time Parameters
+------------------------------
+
+The selection of most model parameters is done at run time from
+an input file that contains NAMELIST variables. The only other 
+runtime parameter is the experiment number which is written to 
+standard output and shown on all graphical output. This experiment 
+number can be used to uniquely identify model runs. The four-digit 
+experiment number is defined by the Unix environment variable 
+EXPERIMENT, e.g. in the Bourne shell:
+
+export EXPERIMENT
+EXPERIMENT=0001
+
+which allows its use by operating system commands for
+filename identification.
+
+There are four types of input parameters in the NAMELIST input file: 
+physical model parameters, experiment definition parameters,
+plotting parameters, and filename parameters.
+A sample copy of such an input file can be found in Appendix A of
+this description.
+
+
+1) Physical Model Parameters
+
+
+   ALPHA is the rotation angle \alpha as used in test cases 
+1, 2 and 3 of the test set paper [6]. (Default: PI/4.0 radian)
+
+   A, OMEGA, and GRAV are the radius, rotational velocity and 
+gravitational acceleration of the earth, initialized to the 
+standard values.
+
+   HDC is the horizontal diffusion coefficient K_{4}; for a reference 
+see Section 2.i of [5]. For nonzero values, potential enstrophy
+is no longer conserved. (Default: 0.0 m^4/s)
+
+
+2) Experiment Definition Parameters
+
+
+   DT is the time step in seconds; the model uses a leapfrog time step
+of 2*DT. (Default: 2400.0 seconds)
+
+   EGYFRQ is the time interval in hours between conservation analysis 
+of the model state. The following invariants are checked: total mass,
+total energy, relative vorticity, divergence, and
+potential enstrophy. In addition a time series for a midlatitude
+point is generated for gravity wave analysis. These are measured as 
+defined by the test set paper. To disable this analysis, set higher 
+than TAUE. (Default: 3.0 hours)
+
+   ERRFRQ is the time interval in hours between error analysis of the
+model state. The L_{1}, L_{2} and L_{\infty} errors of height and 
+vector velocity are computed as described in the test set paper.
+In addition, relative errors of height minimum, maximum, average and 
+variance are computed. For the test cases for that no analytic solution 
+is known, a reference solution is generated from spectral coefficients 
+in a file. To disable this analysis, set higher than TAUE. 
+(Default: 24.0 hours)
+
+   SPCFRQ is the time interval in hours between spectral analysis
+of the kinetic energy and geopotential of the model state. To disable
+this analysis, set higher than TAUE. (Default: 999.0 hours)
+
+   TAUE is the length in hours of the experiment. (Default: 120.0 hours)
+
+   TAUO is the time interval in hours between output of the model
+state as spectral coefficients to a file, to be used as a reference
+solution. To disable spectral output, set higher than TAUE.
+(Default: 999.0 hours)
+
+   GPHFRQ is the time interval in hours between 2D plots of the
+model state, analytic solution and error. To disable these 2D plots,
+set higher than TAUE. (Default: 24.0 hours)
+   
+   AFC is the Asselin filter coefficient that can be used to prevent
+modal splitting between even and odd time steps caused by the 
+leapfrog time stepping procedure. (Default: 0.0)
+
+   SITS is a logical flag that selects between semi-implicit (.TRUE.)
+and explicit (.FALSE.) time stepping. Test case 1 (advection) must be
+run with explicit time stepping. (Default: .TRUE.)
+
+   FORCED is a logical flag that enables external forcing if .TRUE.;
+For case 4 forcing must be enabled. (Default: .FALSE.)
+
+   MOMEMT is a logical flag the selects between momentum forcing
+(.TRUE.) and vorticity-divergence forcing (.FALSE.) for test case 4.
+(Default: .FALSE.)
+
+   ICOND selects the test case to be executed; Currently, cases 1
+through 7 have been defined, corresponding to the test cases in
+Williamson et al. [6]. (Default: 2)
+
+
+3) Plotting Parameters
+
+
+   LGPHS is a logical flag that enables plotting; when set to .FALSE.,
+all graphical output is disabled. (Default: .TRUE.)
+
+   LCONT is a logical flag that adds continental outlines to the 
+2D plots when .TRUE. (Default: .TRUE.)
+
+   LOP, LCP, and LPSP select the map projection: exactly one of them
+must be .TRUE.; LOP selects orthographic projection, LCP cylindrical
+projection, and LPSP north/south polar stereographic projection.
+(Defaults: LOP=.TRUE.,LCP=.FALSE.,LPSP=.FALSE.)
+
+   LG enables contour plots for the height field. 
+(Default: .TRUE.)
+  
+   LU enables contour plots of the eastward (u) wind component.
+(Default: .FALSE.)
+
+   LV enables contour plots of the northward (v) wind component.
+(Default: .FALSE.)
+
+   LZ enables contour plots of the absolute vorticity.
+(Default: .FALSE.)
+
+   LD enables contour plots of the divergence.
+(Default: .FALSE.)
+
+   LVV enables vector plots of the wind field. 
+(Default: .TRUE.)
+   
+   LVVG enables an overlay of height contours and wind vectors.
+(Default: .FALSE.)
+   
+   POLAT,POLNG,POROT defines the center latitude, center longitude
+and rotation angle for plots.
+(Defaults: POLAT=0.0,POLNG=0.0,POROT=0.0 degrees)
+
+
+4) Filename Parameters
+
+
+   FNIN is the filename of the file containing the spectral 
+coefficients to be read in as a reference solution (see Section 5.2). 
+Default filename is 'VDGDATA.cdf'.
+
+   FNOUT is the filename of the file into which the spectral 
+coefficients of this model run are to be written (see Section 5.6).
+Default filename is 'REFDATA.cdf'.
+
+
+Section 5: Input/Output Files
+-----------------------------
+
+This section describes the up to six different files that are used 
+by the shallow water model. For an example on how these files are 
+used in a Unix environment, see Section 7. 
+
+1) Namelist Input File
+
+The NAMELIST input file is extensively described in Section 4. 
+This input file is expected from the standard input unit.
+For test cases 1 through 7 of Williamson et al. [6], 
+Namelist input files are provided in the directories 
+'test1' through 'test7'.
+
+2) Input File with Spectral Coefficients
+
+For test cases 5,6, and 7 of Williamson et al. [6] the analytic 
+solution is defined by spectral coefficients that have been 
+previously computed.
+Appendix D of this description contains a table of such reference 
+solutions, which are located in subdirectory /netcdf.
+The files are in netCDF format [4], which is described in Appendix C.
+
+The default input filename is 'VDGDATA.cdf'. This filename must 
+be changed to point to the desired reference solution, using the 
+parameter FNIN of the NAMELIST input file (see Section 4.4).
+
+3) Standard Output
+
+The following information is written to standard output (Unit 6).
+First, a copy of the NAMELIST input file with the run time parameters.
+Next, the spectral truncation parameters as defined by the compile
+time parameters in the INCLUDE file 'PARAMS.i'.
+If requested by the NAMELIST parameters EGYFRQ, ERRFRQ, or SPCFRQ
+the model state is analyzed at the specified time intervals, 
+including the initial model state, and the results are written 
+to standard output.
+To disable this output, set the NAMELIST parameters higher than the
+model length parameter TAUE.
+The output from these analysis routines should be self-descriptive
+and can be used for postprocessing.
+
+4) Error Output
+
+Certain conditions cause the shallow water model to terminate 
+with a fatal error. In most cases an error message is written to
+the error output unit 0 before the STOP command. 
+Also, warning messages and comments are written to this file, 
+for example if the time step excced the CFL limit initially,
+or if spectral coefficients were truncated during I/O to/from
+NetCDF files.
+
+5) NCAR Graphics Metafile
+
+NCAR graphics produces a computer graphics metafile called 'gmeta'
+by default. The name of this output file can be changed in a UNIX
+environment by redefining the environment variable NCARG_GKS_OUTPUT:
+
+export NCARG_GKS_OUTPUT
+NCARG_GKS_OUTPUT=filename
+
+Graphics output can be disabled by setting the NAMELIST variable
+LGPHS to .FALSE. (see Section 4.3).
+
+6) Output File with Spectral Coefficients
+
+The state of the model can be output as spectral coefficients to
+a file, which can later serve as a reference solution spectral
+input file (see 2). The file format is netCDF format [4] and described 
+in Appendix C of this description. The default filename is 'REFDATA.cdf'. 
+Again, the filename can be changed using the parameter FNOUT of the 
+NAMELIST input file (see Section 4.4).
+
+
+Section 6: Compilation Guide
+----------------------------
+
+This section contains some guidelines for compilation of the
+model code in directory 'src'. This directory contains about 50 
+Fortran files and 8 Include files. The filenames are the same as 
+the subroutine or function defined in them. 
+
+1) Portability
+
+With two exceptions, the model code is written in Fortran 77:
+INCLUDE files and NAMELIST input parameters. The code has been 
+compiled and executed on Sun and IBM workstations and Cray 
+supercomputers.
+
+INCLUDE files have been used for PARAMETER definitions, global 
+variable definitions in COMMON blocks and netCDF declarations. 
+Each INCLUDE file is itself commented, so the following list is 
+just an overview of the contents:
+
+Filename     Content
+----------------------------------------------------------------------
+params.i     All global parameter definitions (see Section 3); this 
+             file must be included before other INCLUDE files since
+             it contains needed array sizes.
+
+complt.i     Plotting parameters for routine PLOTS
+consts.i     Experiment definition and physical parameters
+finit.i      Initial conditions for test cases
+case4.i      Parameters for test case 4
+tdvars.i     Model state variables vorticity, divergence, geopotential,
+             wind field and time level index
+trnsfm.i     Spherical basis functions for transform grid<->spectral
+wrkspc.i     Workspace (mainly for FFTs and graphics output)
+netcdf.inc   Variable declarations for netCDF routines; this file
+             contains variables in lower case letters and variables 
+             names that are longer than 6 characters.
+
+Except for the netCDF INCLUDE file, these files are assumed to
+reside in the same directory as the Fortran files. The netCDF
+INCLUDE file is assumed to be located in directory '/usr/local/include'.
+If this is not the case, modify the variable CDFINC in the makefile.
+NetCDF routines are called from the routines INPTP, OUTPTP, PRNT
+and INFLD.
+
+A NAMELIST file is used for input of the run time parameters to the
+model in routine INPUT. For a description, see Section 4.
+
+Another non-portable feature is the use of the GETENV Unix library
+function to access environment variables. The model uses this function
+in subroutine INPUT to access the experiment number. If this 
+environment variable is undefined, experiment number 0000 is chosen.
+
+2) Library Subroutines
+
+Please read the file 'README' for directions on how to obtain
+the library routines used by the model. Only the FFT routine is 
+essential for model execution. It is possible to run the model 
+without netCDF software, if no input/output of spectral coefficients 
+is needed. Test cases 1-4 should work without this feature. It is 
+also possible to run the model without NCAR graphics software 
+(Set NAMELIST parameter LGPHS = .FALSE.). In any case, the analysis 
+routines write their values in ASCII form to standard output for 
+postprocessing. The integration routine D01AHE is only used by test 
+cases 3 and 4. 
+
+3) Makefile
+
+Directory 'src' also contains a file 'makefile' for compilation of the 
+code in UNIX environments. Currently, the makefile is set up for Sun 
+Workstations, IBM RS 6000 and Cray Y-MP. Use the
+
+make -e MACHINE=sun
+make -e MACHINE=ibm
+make -e MACHINE=cray
+
+commands respectively. Alternatively, you can change the 'MACHINE' 
+variable in the makefile.
+The 'make' command will compile each source file separately, link 
+them with the required libraries and create an executable file 'stswm'.
+The current setup is to use the NCAR graphics and NetCDF libraries,
+but replace the NAG integration routine and ECMWF FFT library with
+the provided source code. If you have access to the NAG and ECMWF
+libraries, change the makefile variables D01AHE and FFT accordingly.
+If you do not have access to the NCAR graphics and netCDF libraries,
+change the makefile variables GRAPHICS and NETCDF accordingly.
+
+The makefile also contains the dependencies on the INCLUDE files so 
+that changes in the INCLUDE files automatically cause a recompilation 
+of the affected object modules. 
+On other machines than Sun, IBM or Cray please pay attention 
+that the NCAR graphics library routines AGPWRT, CPCNRC, CPMPXY and VELVCT 
+are replaced by the modified routines when invoking the 
+linker/loader. 
+
+
+Section 7: Execution Guide
+--------------------------
+
+1) Execution in a UNIX Environment
+
+Section 5 describes which I/O files are used in this model.
+For test cases 1 to 4 of Williamson et al. [6], only the NAMELIST 
+input file is required from the standard input unit:
+
+stswm < exp.data 
+
+Because of the voluminous output, it is recommended that standard
+output be redirected to a file:
+
+stswm < exp.data > stdout
+
+For test cases 5 to 7 of Williamson et al. [6], the analytic solution 
+is computed from spectral coefficients in a netCDF file. 
+The filename for this file is defined by the NAMELIST parameter FNIN. 
+The default filename is 'VDGDATA.cdf'. See Appendix D for a table of 
+references solutions that are provided in directories 'test5' through 
+'test7'. It is also possible to write the computed spectral coefficients 
+to a netCDF file for later analysis or comparison. The filename
+for this file is defined by the NAMELIST parameter FNOUT. The
+default filename is 'REFDATA.cdf'.
+
+The environment variables NCARG_GKS_OUTPUT (Section 5.5) and
+EXPERIMENT (Section 4) can be set to change the default filename
+'gmeta' for NCAR graphics output and to change the default
+experiment number '0000'.
+
+The directories 'test1' through 'test7' contain README files,
+example NAMELIST input files and Sun and Cray 
+job scripts. For test purposes, each directory contains output from 
+execution on a Sun workstation. It is recommended that tests 1 
+through 7 are run in sequence and results compared for general consistency.
+
+
+2) Approximate Memory Requirements
+
+On a Cray Y-MP/8, the model code uses about 350 Kwords = 2.8 MByte
+A T-42 model run has a maximum memory usage of 800 Kwords = 6.4 MByte
+
+3) Approximate Run Time
+
+On a single processor Cray Y-MP/8, a 5 day model run without any
+analysis or graphics output at T-42 resolution takes about
+10 sec, executing at a computational rate of about 100 MFLOPS.
+
+
+References
+----------
+
+1) Browning, G.L., J.J. Hack and P.N. Swarztrauber, A comparison of
+   three numerical methods for solving differential equations on
+   the sphere, Monthly Weather Review, 117:1058-1075, 1989.
+
+2) Hack, J.J. and R. Jakob, Description of a global
+   shallow water model based on the spectral transform method,
+   NCAR Technical Note TN-343+STR, January 1992.
+
+3) Jakob, R., J.J. Hack and D.L. Williamson, Reference solutions to
+   shallow water test set using the spectral transform method,
+   NCAR Technical Note, in Preparation.
+
+4) NetCDF User's Guide, Version 2.0, NCAR Technical Note TN-334+IA,
+   November 1991.
+
+5) Williamson, D.J., J.T. Kiehl, V. Ramanathan, R.E. Dickinson and
+   J.J. Hack, Description of NCAR community climate model (CCM1),
+   NCAR Technical Note TN-285+STR, June 1987.
+
+6) Williamson, D.L., J.B. Drake, J.J. Hack, R. Jakob and P.S. Swarztrauber,
+   A standard test set for numerical approximations to the shallow
+   water equations in spherical geometry, Journal of Computational Physics,
+   102:211-224, 1992.
+
+
+Appendix A: Example NAMELIST Input File
+---------------------------------------
+
+ Input file for spectral shallow water model STSWM
+ (read as NAMELIST by routine INPUT from standard input unit)
+ Physical model parameters
+E$PHYVAR          
+ ALPHA  =  0.78539816,; rotation angle (radian)
+ A      =  6.37122E6, ; radius of earth (meter)
+ OMEGA  =  7.292E-5,  ; angular velocity of earth (radian/second)
+ GRAV   =  9.80616,   ; gravitational acceleration (meter/second^2)
+ HDC    =  0.0E00,    ; horizontal diffusion coefficient (meter^4/second)
+ $END
+ Experiment definition parameters
+E$EXPDEF            
+ DT     =   2400.0,   ; time step (second) of simulation
+ EGYFRQ =   3.0,      ; time interval (hour) of conservation analysis
+ ERRFRQ =   24.0,     ; time interval (hour) of L-error analysis
+ SPCFRQ =   999.0,    ; time interval (hour) of spectral analysis
+ TAUE   =   120.0,    ; model termination time (hour)
+ TAUO   =   999.0,    ; time interval (hour) of spectral output to file
+ GPHFRQ =   24.0,     ; time interval (hour) of plots
+ AFC    =   0.0,      ; Asselin filter coefficient
+ SITS   =   .TRUE.,   ; Flag for semi-implicit time stepping
+ FORCED =   .FALSE.,  ; Flag for external forcing (case 4)
+ MOMENT =   .FALSE.,  ; Flag for momentum / vorticity-divergence forcing
+ ICOND  =   2,        ; Test case #
+ $END
+ Plotting parameters
+E$PLTDEF           
+ LGPHS  = .TRUE.,     ; Flag to enable plots
+ LCONT  = .TRUE.,     ; Flag for continental outlines
+ LOP    = .TRUE.,     ; Flag for orthographic projection
+ LCP    = .FALSE.,    ; Flag for cylindrical projection
+ LPSP   = .FALSE.,    ; Flag for polar stereographic projection
+ LG     = .TRUE.,     ; Flag for height field plot
+ LU     = .FALSE.,    ; Flag for u-wind field plot
+ LV     = .FALSE.,    ; Flag for v-wind field plot
+ LZ     = .FALSE.,    ; Flag for vorticity plot
+ LD     = .FALSE.,    ; Flag for divergence plot
+ LVV    = .FALSE.,    ; Flag for vector wind field plot
+ LVVG   = .FALSE.,    ; Flag for height&vector wind plot
+ POLAT  = 0.0,        ; Center latitude for plots (degree)
+ POLNG  = 0.0,        ; Center longitude for plots (degree)
+ POROT  = 0.0,        ; Rotation angle for plots (degree)
+ $END
+ Input/Output filenames
+E$FNAMES
+ FNIN   = 'VDGDATA.cdf', ; Filename for input of spectral coefficients
+ FNOUT  = 'REFDATA.cdf', ; Filename for output of spectral coefficients
+ $END
+
+Appendix B: Calling Tree 
+------------------------
+
+Following is the commented calling tree for the main program 'STSWM':
+(some leaf routines have been deleted to improve readability)
+
+STSWM-+ * main program
+      |
+      +-INPUT-+-EPSLON * determine machine epsilon
+      |       |
+      |       +-(GETENV) * read EXPERIMENT environment variable
+      |       |
+      |       +-GLATS--ORDLEG * compute Gaussian latitudes and weights
+      |       |
+      |       +-CEPS * compute coefficient arrays for assoc. Leg. functions
+      |       |
+      |       +-CALP * compute associated Legendre functions
+      |       |
+      |       +-(SET99) * setup for Fast Fourier Transform
+      |
+      +-(OPNGKS) * setup for NCAR graphics library
+      |
+      +-ORTHO * orthogonality/orthonormality check of basis
+      |
+      +-INIT-+ * setup for analytic solutions for test cases (steady part)
+      |      |
+      |      +-(D01AHE) * NAG integration routine for balanced geopotential
+      |      |
+      |      +-ROTATE * rotational coordinate transformation
+      |      |
+      |      +-ZD (4)-+ * compute vorticity and divergence spectral coeff.
+      |      |        |
+      |      |        +-(FFT991) * Fast Fourier transform
+      |      |
+      |      +-SHTRNS (5)--(FFT991) * inverse Legendre and Fourier
+      |                               transform to grid values
+      |
+      +-ANLYTC (6)-+ * compute analytic solution at given time
+      |            |
+      |            +-ROTATE * rotational coordinate transformation
+      |            |
+      |            +-INPTP * read reference solution from file
+      |            |       |
+      |            |       +-INFLD * read spectral coefficients 
+      |            |
+      |            +-EVAL-+ * evaluation at arbitrary point on sphere
+      |                   |
+      |                   +-DCEPS * coefficients for assoc. Leg. functions
+      |                   |
+      |                   +-DFTFAX * compute Fourier basis for
+      |                   |          arbitrary longitude
+      |                   |
+      |                   +-DCALP * compute assoc. Leg. functions for
+      |                   |         arbitrary latitude
+      |                   |
+      |                   +-DTRNS--DFT991 * evaluate vorticity,
+      |                   |                 divergence, geopotential
+      |                   |
+      |                   +-DUV--DFT991 * evaluate u,v wind field
+      |
+      +-PLOTS (7)-+ * plots of computed, analytic or error fields
+      |           |
+      |           +-CPCNRC (1) * contour line plots
+      |           |
+      |           +-VELVCT * vector plots for wind vector
+      |
+      +-NRGTCS-+ * Conservation analysis
+      |        |
+      |        +-(EZXY) * time series plot
+      |
+      +-ERRANL-+ * L_1,L_2,L_\infty error analysis
+      |        |
+      |        +-(EZXY) * time series plot
+      |        |
+      |        +-ANLYTC see 6 * get analytic solution
+      |        |
+      |        +-PLOTS see 7 * 2D plots of analytic solution and error
+      |
+      +-ZD see 4 * compute vorticity-divergence spectral coeff.
+      |            for initial kinetic energy spectrum plots
+      |
+      +-SHTRNS see 5 * compute geopotential spectral coeff.
+      |                for initial height spectrum plots
+      |
+      +-OUTPTP-+ * write model spectral state to file
+      |        |
+      |        +-PRNT * write one spectral field to file
+      |
+      +-SPCANL-+ * spectral analysis of kinetic energy and geopotential
+      |        |
+      |        +-(EZXY) * wavenumber-kinetic/potential energy plots
+      |
+      +-STEP-+ * advances model one time step (handles 3 time-level buffer) 
+      |      |   and smooth start
+      |      |
+      |      +-COMP1-+ * selects time-stepping algorithm + spectral
+      |              |   diffusion 
+      |              |
+      |              +-FTRNIM-+ * semi-implicit time stepping;
+      |              |        |   compute nonlinear products 
+      |              |        |
+      |              |        +-FORCE (8) * compute forcing terms (case 4)
+      |              |        |
+      |              |        +-(FFT991) * FFT of nonlinear products
+      |              |        |
+      |              |        +-FTRNVE * vorticity equation
+      |              |        |
+      |              |        +-FTRNDI * divergence equation (semi-impl.)
+      |              |        |
+      |              |        +-FTRNPI * geopotential equation (semi-impl.)
+      |              |
+      |              +-ADVECT-+ * advection equation;
+      |              |        |   compute nonlinear products
+      |              |        |
+      |              |        +-FORCE see 8 * optional forcing 
+      |              |        |
+      |              |        +-(FFT991) * FFT of nonlinear products
+      |              |        |
+      |              |        +-FTRNPE * geopotential equation (expl.)
+      |              |        |
+      |              |        +-SHTRNS see 5 * inverse transform geopotential
+      |              |
+      |              +-FTRNEX-+ * explicit time stepping;
+      |              |        |   compute nonlinear products
+      |              |        |
+      |              |        +-FORCE see 8 * compute forcing terms (case 4)
+      |              |        |
+      |              |        +-(FFT991) * FFT of nonlinear products
+      |              |        |
+      |              |        +-FTRNVE * vorticity equation
+      |              |        |
+      |              |        +-FTRNDE * divergence equation (expl.)
+      |              |        |
+      |              |        +-FTRNPE * geopotential equation (expl.)
+      |              |
+      |              +-UV--(FFT991) * inverse spherical transform to 
+      |              |                get u,v winds
+      |              |
+      |              +-SHTRNS see 5 * inverse spherical transforms of
+      |                               height, vorticity, divergence
+      |
+      +-(CLSGKS) * close NCAR graphics file
+
+The following subroutines and functions are indirectly called:
+
+AGPWRT * used for high quality character labels IN EZXY
+
+CPMPXY * irregular grid remapping function used in CPCNRC and VELVCT
+
+CPMVXY * irregular grid remapping function used in VELVCT
+
+DRAWCL * used to draw contour lines in CPCNRC
+
+FU--US * function to be integrated by routine D01AHE for test
+         case 3 in routine INIT
+
+FUNC2--BUBFNC * function to be integrated by routine D01AHE for test
+                case 4 in routine INIT
+
+SHADER * draws diagonal lines for negative values in CPCNRC
+
+
+Appendix C: File Format Description
+-----------------------------------
+
+The spectral coefficients are stored in netCDF [4] format for
+wide portability. Please pay attention that netCDF files are binary
+files when copying or using FTP.
+NetCDF uses a netCDF description language (CDL)
+to define the file format. Below is a copy of a CDL description
+of the format used in this code, generated by using the 
+'ncdump -h' command:
+
+netcdf VDGDATA {
+dimensions:
+	complex = 2 ;
+	m-wave+1 = 107 ;
+	n-wave+1 = 107 ;
+	timestep = UNLIMITED ; // (1 currently)
+
+variables:
+	long testcase ;
+	float rot_angle ;
+		rot_angle:units = "radian" ;
+	float time(timestep) ;
+		time:units = "hour" ;
+	long mm ;
+	long nn ;
+	long kk ;
+	float vorticity(timestep, n-wave+1, m-wave+1, complex) ;
+		vorticity:units = "second-1" ;
+	float divergence(timestep, n-wave+1, m-wave+1, complex) ;
+		divergence:units = "second-1" ;
+	float geopotential(timestep, n-wave+1, m-wave+1, complex) ;
+		geopotential:units = "meter2 second-2" ;
+}
+
+
+Appendix D: Table of Reference Solutions
+----------------------------------------
+
+The following table lists the reference solutions that are provided with
+the software. The files are in netCDF format (see Appendix C) and therefore
+must be accessed in binary mode when using FTP.
+
+It is important that the following NAMELIST input parameters 
+match the ones that were chosen for the reference run:
+
+ICOND  = ...  Test case numbers must be identical
+ERRFRQ = ...  Must be a multiple of output interval TAUO=24.0 hours
+              of the reference run
+ALPHA  =  0.0 Rotation angle must be identical
+
+The following parameter should also be checked:
+
+MAXH   = 106  Spectral truncation for input coefficients should match
+              spectral truncation T-106 of reference runs. If MAXH is
+              smaller, the data will be spectrally truncated.
+
+The initial conditions for the observed heigth and wind fields
+were obtained from ECMWF analysis, using Kevin Trenberth's CCM 
+Processor dataset, which is available on a T-42 grid. However,
+the mean height of the fluid was changed to 10 km.
+For the high resolution reference solutions of test case 7
+the initial conditions were obtained via nonlinear normal
+mode initialization. In all files only the spectral coefficients
+corresponding to T-106 trunctaion have been stored, although the
+model runs were done at higher resolution.
+
+
+The following files are located in subdirectory /netcdf:
+
+
+Case | Filename    | Description
+-----+-------------+---------------------------------------------------------
+  5  | REF0114.cdf | Zonal flow over an isolated mountain: Reference Solution
+     |             | Model Truncation: T-213
+     |             | Time step: 360 s
+     |             | Diffusion: 8.0E12 m^4/s
+     |             | Length of run: 360 hours (15 days)
+     |             | Output interval: 24 hours
+-----+-------------+---------------------------------------------------------
+  6  | REF0092.cdf | Rossby-Haurwitz Wave: Reference Solution
+     |             | Model Truncation: T-213
+     |             | Time step: 180 s
+     |             | Diffusion: 8.0E12 m^4/s
+     |             | Length of run: 336 hours (14 days)
+     |             | Output interval: 24 hours
+-----+-------------+---------------------------------------------------------
+  7  | INI0077.cdf | December 21, 1978: Initial Data 
+     |             | (before Normal Mode Initialization)
+-----+-------------+---------------------------------------------------------
+  7  | REF0077.cdf | December 21, 1978: Reference Solution
+     |             | Model Truncation: T-213
+     |             | Time step: 360 s
+     |             | Diffusion: 8.0E12 m^4/s
+     |             | Length of run: 120 hours (5 days)
+     |             | Output interval: 24 hours
+-----+-------------+---------------------------------------------------------
+  7  | INI0087.cdf | January 9, 1979: Initial Data
+     |             | (before Normal Mode Initialization)
+-----+-------------+---------------------------------------------------------
+  7  | REF0087.cdf | January 9, 1979: Reference Solution
+     |             | Model Truncation: T-213
+     |             | Time step: 360 s
+     |             | Diffusion: 8.0E12 m^4/s
+     |             | Length of run: 120 hours (5 days)
+     |             | Output interval: 24 hours
+-----+-------------+---------------------------------------------------------
+  7  | INI0088.cdf | January 16, 1979: Initial Data
+     |             | (before Normal Mode Initialization)
+-----+-------------+---------------------------------------------------------
+  7  | REF0088.cdf | January 16, 1979: Reference Solution
+     |             | Model Truncation: T-213
+     |             | Time step: 360 s
+     |             | Diffusion: 8.0E12 m^4/s
+     |             | Length of run: 120 hours (5 days)
+     |             | Output interval: 24 hours
+-----------------------------------------------------------------------------

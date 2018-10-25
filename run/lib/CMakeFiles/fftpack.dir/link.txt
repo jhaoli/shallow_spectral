@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfftpack.a  CMakeFiles/fftpack.dir/adquad.f.o CMakeFiles/fftpack.dir/fft99f.f.o CMakeFiles/fftpack.dir/ncarg.f.o CMakeFiles/fftpack.dir/netcdf.f.o
+/usr/bin/ranlib libfftpack.a
